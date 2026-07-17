@@ -1,5 +1,5 @@
 from typing import Set
-
+from itertools import chain, combinations
 from classes.dataset import Dataset
 from classes.itemset import Itemset
 from classes.itemsets_with_occurrence_counts import ItemsetsWithOccurrenceCounts
@@ -32,7 +32,17 @@ class Apriori:
         Returns:
         Set[Itemset]: A set containing all 1-itemsets that are contained in the dataset.
         """
-        # TODO
+        item =[]
+        sett = set()
+        for d in dataset.transactions:
+            for items in d.items:
+                if (items.name in item):
+                    continue
+                item.append(items.name)
+                sett.add(Itemset(frozenset({items})))
+        
+        return sett
+
 
     def _count_occurrences_of_itemsets(
         self, dataset: Dataset, itemsets: Set[Itemset]
@@ -47,7 +57,20 @@ class Apriori:
         Returns:
         ItemsetsWithOccurrenceCounts: A dictionary containing the itemsets as keys and their occurrence counts as values.
         """
-        # TODO
+        dic = ItemsetsWithOccurrenceCounts(itemsets)
+        for t in dataset.transactions:
+            transactionlist = []
+            for i in t.items:
+                transactionlist.append(i.name)
+            for s in itemsets:
+                slist=[]
+                for item in s:
+                    slist.append(item.name)
+                if(set(slist).issubset(set(transactionlist))):
+                    dic.add_occurrence(s)
+
+        return dic
+
 
     def _prune_itemsets_below_min_support(
         self,
@@ -62,7 +85,13 @@ class Apriori:
         Returns:
         Set[Itemset]: A set containing all itemsets that are considered frequent.
         """
-        # TODO
+        sett = set()
+        for i,c in itemsets_with_occurrence_counts.items():
+            if(c>=self.min_support):
+                sett.add(i)
+            
+        return sett
+
 
     def _generate_candidate_itemsets(
         self, frequent_itemsets: Set[Itemset]
@@ -79,8 +108,46 @@ class Apriori:
         # If there are no frequent itemsets, return an empty set
         if not frequent_itemsets:
             return set()
+        candidate =[]
+        ergebnis= set()
+        gueltige = []
+        k = 0
+        for itemset in frequent_itemsets:
+            anzahl =0
+            for i in itemset:
+                anzahl+=1
+            if(anzahl > k):
+                k=anzahl
+        for itemset in frequent_itemsets: 
+            anzahl =0
+            for i in itemset:
+                anzahl+=1
+            if(anzahl < k):
+                continue
+            for zweitesset in frequent_itemsets:
+                if(len(zweitesset.items) !=k or zweitesset == itemset ):
+                    continue
+                for item in zweitesset.items:
+                    copy = list(zweitesset.items.copy())
+                    copy.remove(item)
+                    if(set(copy).issubset(itemset.items)):
+                        citemset=set(itemset.items.copy())
+                        citemset.add(item)
+                        candidate.append(citemset)
 
-        # TODO
+        gueltige= candidate.copy()
+        for c in candidate:
+            potenzmenge = chain.from_iterable(combinations(list(c), r) for r in range(len(list(c)) + 1))
+            echtes_potenzmenge_set = {frozenset(d) for d in potenzmenge}
+            for p in echtes_potenzmenge_set:
+                if(len(p)==0 or len(p)==k+1):
+                    continue
+                if not Itemset(p) in frequent_itemsets:
+                    gueltige.remove(c)
+                    break
+        for g in gueltige:
+            ergebnis.add(Itemset(frozenset(g)))
+        return ergebnis
 
     def fit(self, dataset: Dataset):
         """
@@ -93,4 +160,9 @@ class Apriori:
         # Reset the set of frequent itemsets
         self.frequent_itemsets = set()
 
-        # TODO
+        einzelElemente = self._generate_one_itemsets(dataset)
+        frequent = self._prune_itemsets_below_min_support(self._count_occurrences_of_itemsets(einzelElemente))
+        self.frequent_itemsets.add(frequent)
+        while(len(frequent)>0):
+            frequent= self._generate_candidate_itemsets(self.frequent_itemsets)
+            self.frequent_itemsets.add(frequent)

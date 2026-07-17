@@ -41,7 +41,35 @@ class FPgrowth:
         Returns:
         ItemsetsWithOccurrenceCounts: A dictionary containing the frequent 1-itemsets as keys and their occurrence counts as values.
         """
-        # TODO
+        item =[]
+        sett = set()
+        for d in dataset.transactions:
+            for items in d.items:
+                if (items.name in item):
+                    continue
+                item.append(items.name)
+                sett.add(Itemset(frozenset({items})))
+        
+        dic = ItemsetsWithOccurrenceCounts(sett)
+        for t in dataset.transactions:
+            transactionlist = []
+            for i in t.items:
+                transactionlist.append(i.name)
+            for s in sett:
+                slist=[]
+                for item in s:
+                    slist.append(item.name)
+                if(set(slist).issubset(set(transactionlist))):
+                    dic.add_occurrence(s)
+        temp = {}
+        for s, anzahl in dic.items():
+            if(anzahl >= self.min_support):
+                temp[s] = anzahl
+        count = ItemsetsWithOccurrenceCounts(temp)
+        for c in temp:
+            count.set_occurrence_count(c,temp[c])
+        return count
+
 
     def _generate_f_list(
         self, frequent_one_itemsets: ItemsetsWithOccurrenceCounts
@@ -55,7 +83,13 @@ class FPgrowth:
         Returns:
         List[Itemset]: A f-list containing the frequent 1-itemsets sorted by decreasing occurrence count.
         """
-        # TODO
+        ergebnis=[]
+        dic ={}
+        dic = dict(sorted(frequent_one_itemsets.items(), key = lambda item: item[1], reverse = True))
+        for n in dic:
+            ergebnis.append(n)
+        return ergebnis
+
 
     def _sort_dataset_according_to_f_list(
         self, dataset: Dataset, f_list: List[Itemset]
@@ -70,7 +104,20 @@ class FPgrowth:
         Returns:
         SortedDataset: The sorted dataset.
         """
-        # TODO
+        
+        datasett = set()
+        for t in dataset.transactions:
+            sett = []
+            for f in f_list:
+                if f.items.issubset(t.items):
+                    sett.append(list(f.items)[0])
+            transaction = SortedTransaction(t.id, ItemTuple(tuple(sett)))
+            datasett.add(transaction)
+        return SortedDataset(frozenset(datasett))
+
+
+
+
 
     def _construct_initial_fp_tree(self, sorted_dataset: SortedDataset) -> FPTree:
         """
@@ -82,7 +129,10 @@ class FPgrowth:
         Returns:
         FPTree: The initial FP-tree.
         """
-        # TODO
+        fp_tree = FPTree()
+        for t in sorted_dataset.transactions:
+            fp_tree.add_items_to_tree(t.items, 1)
+        return fp_tree
 
     def _get_conditional_pattern_base(
         self, item: Item, fp_tree: FPTree
@@ -97,7 +147,16 @@ class FPgrowth:
         Returns:
         ConditionalPatternBase: The conditional pattern base for the given item.
         """
-        # TODO
+        ergebnis=[]
+        header_table= fp_tree.get_header_table()
+        for e in header_table.elements:
+            if(e.item == item):
+                element = e
+        
+        for node in element.node_links:
+            ergebnis.append(ConditionalPattern(ItemTuple(tuple(list(map(lambda x: x.item , node.get_predecessors())))), node.occurrence_count))
+        return ConditionalPatternBase(frozenset(ergebnis))
+
 
     def _construct_conditional_fp_tree(
         self, conditional_pattern_base: ConditionalPatternBase
@@ -111,7 +170,10 @@ class FPgrowth:
         Returns:
         FPTree: The conditional FP-tree.
         """
-        # TODO
+        fp_tree = FPTree()
+        for c in conditional_pattern_base.conditional_patterns:
+            fp_tree.add_items_to_tree(c.prefix_items, c.occurrence_count)
+        return fp_tree
 
     def fit(self, dataset: Dataset):
         """
@@ -121,4 +183,27 @@ class FPgrowth:
         Parameters:
         dataset (Dataset): The dataset to which the FP-growth algorithm should be fitted.
         """
-        # TODO
+        def helper(self, fp: FPTree, bisherig: list[Item]):
+            if(fp.is_empty()):
+                return 
+            header_table= fp.get_header_table()
+            for node in header_table.elements:
+                if(node.overall_occurrence_count>=self.min_support):
+                    condi = self._get_conditional_pattern_base(node.item, fp)
+                    weiter = bisherig.copy()
+                    weiter.append(node.item)
+                    self.frequent_itemsets.add(Itemset(frozenset(weiter)))
+                    helper(self, self._construct_conditional_fp_tree(condi), weiter)
+            return
+        
+        frequent = self._generate_frequent_one_itemsets_with_occurrence_counts(dataset)
+        f_list = self._generate_f_list(frequent)
+        sdata = self._sort_dataset_according_to_f_list(dataset, f_list)
+        fftree = self._construct_initial_fp_tree(sdata)
+        g =[]
+        return helper(self, fftree, g)
+        
+    
+
+
+        
