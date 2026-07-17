@@ -161,8 +161,13 @@ class Apriori:
         self.frequent_itemsets = set()
 
         einzelElemente = self._generate_one_itemsets(dataset)
-        frequent = self._prune_itemsets_below_min_support(self._count_occurrences_of_itemsets(einzelElemente))
-        self.frequent_itemsets.add(frequent)
+        frequent = self._prune_itemsets_below_min_support(self._count_occurrences_of_itemsets(dataset, einzelElemente))
+        self.frequent_itemsets.update(frequent)
+        frequent= self._generate_candidate_itemsets(self.frequent_itemsets)
         while(len(frequent)>0):
-            frequent= self._generate_candidate_itemsets(self.frequent_itemsets)
-            self.frequent_itemsets.add(frequent)
+            candidates = self._generate_candidate_itemsets(self.frequent_itemsets)
+            candidates = self._count_occurrences_of_itemsets(dataset, candidates)
+
+            frequent = self._prune_itemsets_below_min_support(candidates)
+
+            self.frequent_itemsets.update(frequent)
